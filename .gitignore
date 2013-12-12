@@ -1,0 +1,17 @@
+*.py[cod]
+
+#output files
+output/
+SimpleCV/
+
+#input files
+input/
+
+
+# Mr Developer
+.mr.developer.cfg
+.project
+.pydevproject
+
+#os
+.DS_Store
