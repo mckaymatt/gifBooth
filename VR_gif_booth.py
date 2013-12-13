@@ -3,160 +3,157 @@
 import sys
 import time
 import uuid
-#@PydevCodeAnalysIsIgnore
+import time
 
 from SimpleCV import *
-
-
 
 global gif_frames
 global gif_frameRate 
 
 if __name__ == '__main__':
-        if len(sys.argv) == 3:
-                gif_frames = float(sys.argv[1])
-                gif_frameRate = float(sys.argv[2])
-        else:
-                gif_frames = 8
-                gif_frameRate = 0.4
+    if len(sys.argv) == 3:
+        gif_frames = float(sys.argv[1])
+        gif_frameRate = float(sys.argv[2])
+    else:
+        gif_frames = 8
+        gif_frameRate = 0.4
 
 
 #class GifPlayback()
   # Initialize the camera 
-# screen rez 1280 1024 camera rez 1024 768      
+# screen rez 1280 1024 
 
 class CameraCapture():
-                
-        _key = True
-        _width = 320#800#1280  
-        _height = 240#600#1024
+        
+    _key = True
+    _width = 320
+    _height = 240
 
-        def __init__(self,index,width = 320 , height = 240):
-                self.width = width
-                self.height = height
-                self.cam = Camera(index, prop_set={"width":self.width,"height":self.height})
+    def __init__(self,index,width = 320 , height = 240):
+        self.width = width
+        self.height = height
+        self.cam = Camera(index, prop_set={"width":self.width,"height":self.height})
+        self.img_set = None 
+        self.start_timer = None
+            
+    def setKey(self):
+        if(self._key):
+            self._key = False
+        else:
+            self._key = True
 
-                self.img_set = None 
-                        
-        def setKey(self):
-                if(self._key):
-                        self._key = False
-                else:
-                        self._key = True
-
-        def makeGifSet(self):
-                self.file_name = uuid.uuid4().hex # make a unique folder
-                self.img_set = ImageSet(directory=("output/"+ self.file_name  ))
-                #ImageSet(directory=("output/" ))#+ self.file_name ))
-
-        def gifOutputImageSetExprs(self):
-                return ImageSet(directory=("output/"+ self.file_name  ))
+    def makeGifSet(self):
+        self.file_name = uuid.uuid4().hex # make a unique file name
+        self.img_set = ImageSet(directory=("output/"+ self.file_name  )) #init an imageClass.ImageSet()  
+        self.start_timer = time.time() #assign a value to start_timer
 
 
-        def gifSetExistsBool(self):
-                if self.img_set == None:
-                        return False
-                else:
-                        return True
-        def fillSetThenSave(self, image):
-                if self.img_set != None and len(self.img_set) >= gif_frames:
+    def gifSetExistsBool(self):
+        if self.img_set == None:
+            return False
+        else:
+            return True
+    def fillSetThenSave(self, image):
+        if self.img_set != None  and len(self.img_set) >= gif_frames:
+            print len(self.img_set)
+            #self.img_set.save(str("output/"+ self.file_name + ".gif"), dt=gif_frameRate)
+            self.img_set._write_gif(filename=("output/"+ self.file_name + ".gif"),\
+                duration=(gif_frameRate), dither=2)
+            return self.img_set
+            #self.img_set = None
+            #return ImageSet().load("output/"+ self.file_name + ".gif")
+        if self.img_set != None:
+            self.img_set.append(image)
+            return None
 
-                        print len(self.img_set)
-                        #self.img_set.save(str("output/"+ self.file_name + ".gif"), dt=gif_frameRate)
-                        self.img_set.save(str("output/"+ self.file_name + ".gif"), dt=gif_frameRate)
-                        return self.img_set
-                        self.img_set = None
-                        return ImageSet().load("output/"+ self.file_name + ".gif")
-                        #return self.gifOutputImageSetExprs()._read_gif(str(self.file_name + ".gif"))
+    #def playFromGif(self, ):
+    def resetGifSet(self):
+        self.start_timer = None # reassign start_timer and img_set 
+        self.img_set = None # 
 
-                        print len(self.img_set), os.path.getsize(str("output/"+ self.file_name + ".gif"))
-                        assert len(self.img_set) <= 16 
-                        assert os.path.getsize(str("output/"+ self.file_name + ".gif")) < 15427450
-                        return self.img_set
-                        self.img_set == None
-                elif self.img_set != None:
-                        print len(self.img_set)
-                        self.img_set.append(image)
-                        return None
+    def frameTimer(self):
+        if self.start_timer == None:
+            return False
+        elif self.start_timer != None:
+            if time.time() - self.start_timer >= gif_frameRate:
+                self.start_timer = time.time()
+                return True
+            else:
+                return False
 
-        #def playFromGif(self, ):
-        def resetGifSet(self):
-                self.img_set = None
+    def getNewImage(self):
+        img = self.cam.getImage()
 
-        def getNewImage(self):
-                img = self.cam.getImage()
-
-                if(self._key):
-                        return img
-                else:
-                        img = img - img.colorDistance(Color.RED) #RED SEGMENTATION
-                        return img
-
-
+        if(self._key):
+            return img
+        else:
+            img = img - img.colorDistance(Color.RED) #RED SEGMENTATION
+            return img
 #make camera obj
 cam1 = CameraCapture(1)
-
-
-width = cam1.width
-height = cam1.height
-disp = Display(flags=pg.FULLSCREEN ,title='Enter The Virtuality' , resolution = (width, height))
-
+#width = cam1.width
+#height = cam1.height
+#quit()
+disp = Display(flags=pg.FULLSCREEN ,title='Enter The Virtuality!' , resolution = (1280 , 1024))
 
 print("\n >>>Right click on the Image to exit!")
-count = 0
 while disp.isNotDone():
-        count += 1
-        #if count > 24*30:
+    img1 = cam1.getNewImage()
+    dwn = disp.leftButtonDownPosition()
 
-         #       del cam1 ; quit()
-        img1 = cam1.getNewImage()
-        dwn = disp.leftButtonDownPosition()
-
-        if dwn != None and cam1.gifSetExistsBool() == False:
-                cam1.makeGifSet()
-                #cam1.setKey()
-        #img1.drawText("Camera 1",100,400,fontsize=40,color=Color.BLUE)
+    if dwn != None and cam1.gifSetExistsBool() == False:
+        cam1.makeGifSet() # create file_name, img_set, start_timer  
+        #cam1.setKey()
+    #img1.drawText("Camera 1",100,400,fontsize=40,color=Color.BLUE)
 
 
-        
-        if count % 18 == 0:
-                gifSet = cam1.fillSetThenSave(img1)
-                if gifSet != None:
-                        for j in range(0, 3):
-                                #quit()
-                                for i in gifSet:
+    if cam1.frameTimer():
+        gifSet = cam1.fillSetThenSave(img1)
+        if gifSet != None:
+            for j in range(0, 3):
+                continue
+                #quit()
+                for i in gifSet:
+                    i.save(disp)
+                    time.sleep(gif_frameRate )
+                else:
+                    time.sleep(gif_frameRate * 3)
+            else:
+                print "reset"
+                cam1.resetGifSet()
 
-                                        i.save(disp)
-                                else:
-                                        time.sleep(gif_frameRate )
-                        else:
-                                cam1.resetGifSet()
+    img1.save(disp)
+    #disp.writeFrame(img1, fit=False)
 
-        img1.save(disp)
-        #disp.writeFrame(img1, fit=False)
-
-        if disp.mouseRight:
-                del cam1
-                break
+    if disp.mouseRight:
+        del cam1
+        break
   #fit* - When fit=False write frame will crop and center the image as best it can.
   #If the image is too big it is cropped and centered. If it is too small
   #it is centered. If it is too big along one axis that axis is cropped and
   #the other axis is centered if necessary."""
 
+# the gifs should be at 320x240 or 640x480
+# adaptive color palette, a little bit of lossy, and dithering
+# if you can do these things..
+# ideally the GIFs would be < 1 MB
+# about a MB is ok
+# more than that and people wont be able to load them reliably (like on their phones) and it will slow down / fuck up browsers. i mean a lil over a MB is OK but ideally its really no bigger
+# shrug maybe 2 MB would be ok, idk
 
 
 print("\n >>>Program Exitted")
 quit()
 
 
-                # if gifSet != None:
-                #         print len(gifSet), repr(gifSet) ; quit()
-                #         count = 0
-                #         for i in gifSet:
-                #                 count += 1
-                #                 i.save(disp)
-                #                 time.sleep(gif_frameRate)
-                #                 if count >= gif_frames:
-                #                         break
-                #         else:
-                #                 cam1.resetGifSet()
+        # if gifSet != None:
+        #     print len(gifSet), repr(gifSet) ; quit()
+        #     count = 0
+        #     for i in gifSet:
+        #         count += 1
+        #         i.save(disp)
+        #         time.sleep(gif_frameRate)
+        #         if count >= gif_frames:
+        #             break
+        #     else:
+        #         cam1.resetGifSet()
