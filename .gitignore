@@ -1,11 +1,10 @@
 *.py[cod]
+*.gif
 
-#output files
+#output and SimpleCV
 output/
 SimpleCV/
 
-#input files
-input/
 
 
 # Mr Developer
