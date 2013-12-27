@@ -43,6 +43,7 @@ class CameraCapture():
         self.start_timer = None
         self.screen_text1 = self._screen_text
         self.output_text = [' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ']
+        self.countdown = None
             
     def setKey(self):
         if(self._key):
@@ -92,8 +93,7 @@ class CameraCapture():
             return img
         else:
             img.getDrawingLayer().selectFont("andalemono")  
-            img.getDrawingLayer().circle(center=(self.width-30, self.height-30), radius=20, color=Color.RED, filled=True, alpha=100, antialias=10)      
-            #center, radius, color = Color.DEFAULT, width = 1, filled = False, alpha = -1, antialias = True)     
+            img.getDrawingLayer().circle(center=(self.width-30, self.height-30), radius=20, color=Color.RED, filled=True, alpha=100, antialias=10)          
             img.drawText(text = self.countDown(), x = 20, y = 10, color = Color.GOLD, fontsize = 24)
             return img
 
@@ -108,16 +108,9 @@ class CameraCapture():
             if self.final_text[i[0]] == random_char:
                 self.output_text[i[0]] = random_char
 
-
-
-
-
             #if self.final_text[i[0]] == random_char:
                 #self.output_text[i[0]] = random_char
             #if value[i[0]] in string.ascii_letters:
-
-                
-
 
             #if value[i[0]] == i[1]:
             #    self.output_text[i[0]] = i[1] 
@@ -129,18 +122,17 @@ class CameraCapture():
         else:
             return "".join(self.output_text)
 
-
-
-
     def countDown(self):
+
+        self.countdown = TimeController(1.0, 4)
+
+
+
+
+
         self.screen_text1 = str(md5.new(self.screen_text1).hexdigest())[0:12] 
         return self.countdown_engage(self.screen_text1)
         #return self.screen_text1
-
-
-
-
-
 
         # if "<" not in self.screen_text1:
         #     self.screen_text1 = map(lambda x : str(x), self._screen_text)
@@ -157,6 +149,7 @@ class TimeController():
     def __init__(self, interval, occurances=1):
         self.start_time = time.time()
         self.occurances = occurances
+        
 
     def check_timer(self):
         if self.occurances < 1: 
@@ -164,11 +157,10 @@ class TimeController():
         elif time.time() - self.start_time >= self.interval:
             self.occurances -= 1
             self.start_time = time.time()
-            return True
+            return self.occurances + 1
         else:
             return False
-
-
+    def is_active(self):
 
 
 # Init camera 
