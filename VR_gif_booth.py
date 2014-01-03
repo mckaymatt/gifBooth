@@ -23,8 +23,6 @@ if __name__ == '__main__':
         gif_frameRate = 0.4
 
 class CameraCapture():
-        
-    _key = False
 
     _img_res_width = 320 
     _img_res_height = 240
@@ -44,18 +42,25 @@ class CameraCapture():
         self.screen_text1 = self._screen_text
         self.output_text = [' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ']
         self.countdown = None
-            
-    def setKey(self):
-        if(self._key):
-            self._key = False
+
+    def getNewImage(self):
+        img = self.cam.getImage()
+
+        img.getDrawingLayer().selectFont("andalemono")
+        if self.gifSetExistsBool():
+            img.getDrawingLayer().circle(center=(self.width-30, self.height-30), radius=20, color=Color.RED, filled=True, alpha=100, antialias=10)          
         else:
-            self._key = True
+            img.drawText(text = self.countDown(), x = 20, y = 10, color = Color.GOLD, fontsize = 24)
+        return img
 
     def makeGifSet(self):
         self.file_name = uuid.uuid4().hex # make a unique file name
         self.img_set = ImageSet(directory=("output/"+ self.file_name  )) # imageClass.ImageSet()  
         self.start_timer = time.time() #assign a value to start_timer
 
+    def resetGifSet(self):
+        self.start_timer = None # reassign start_timer and img_set 
+        self.img_set = None # 
 
     def gifSetExistsBool(self):
         if self.img_set == None:
@@ -72,11 +77,6 @@ class CameraCapture():
             self.img_set.append(image)
             return None
 
-
-    def resetGifSet(self):
-        self.start_timer = None # reassign start_timer and img_set 
-        self.img_set = None # 
-
     def frameTimer(self):
         if self.start_timer == None:
             return False
@@ -86,16 +86,6 @@ class CameraCapture():
                 return True
             else:
                 return False
-
-    def getNewImage(self):
-        img = self.cam.getImage()
-        if(self._key):
-            return img
-        else:
-            img.getDrawingLayer().selectFont("andalemono")  
-            img.getDrawingLayer().circle(center=(self.width-30, self.height-30), radius=20, color=Color.RED, filled=True, alpha=100, antialias=10)          
-            img.drawText(text = self.countDown(), x = 20, y = 10, color = Color.GOLD, fontsize = 24)
-            return img
 
     def countdown_engage(self, value):
         self.final_text = "VIRTUALIZING"
@@ -118,6 +108,7 @@ class CameraCapture():
                 self.output_text[i[0]] = value[i[0]]
         if "".join(self.output_text) == self.final_text:
             self.output_text = [' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ']
+            #self.makeGifSet()
             return self.final_text
         else:
             return "".join(self.output_text)
@@ -125,14 +116,9 @@ class CameraCapture():
     def countDown(self):
 
         self.countdown = TimeController(1.0, 4)
-
-
-
-
-
         self.screen_text1 = str(md5.new(self.screen_text1).hexdigest())[0:12] 
         return self.countdown_engage(self.screen_text1)
-        #return self.screen_text1
+        return self.screen_text1
 
         # if "<" not in self.screen_text1:
         #     self.screen_text1 = map(lambda x : str(x), self._screen_text)
@@ -148,19 +134,23 @@ class CameraCapture():
 class TimeController():
     def __init__(self, interval, occurances=1):
         self.start_time = time.time()
+        self.interval = interval
         self.occurances = occurances
-        
+
 
     def check_timer(self):
-        if self.occurances < 1: 
-            return None
+        if self.occurances == 0: 
+            self.occurances = None
+            return self.occurances
         elif time.time() - self.start_time >= self.interval:
             self.occurances -= 1
             self.start_time = time.time()
             return self.occurances + 1
         else:
             return False
-    def is_active(self):
+
+    def occ_left(self):
+        return self.occurances
 
 
 # Init camera 
@@ -178,7 +168,8 @@ while disp.isNotDone():
     dwn = disp.leftButtonDownPosition()
     # 2 Record Gif
     if dwn != None and cam1.gifSetExistsBool() == False:
-        cam1.makeGifSet() # create file_name, img_set, start_timer  
+        cam1.countDown()
+        #cam1.makeGifSet() # create file_name, img_set, start_timer  
     # 3 Playback gif
     if cam1.frameTimer():
         gifSet = cam1.fillSetThenSave(img1)
