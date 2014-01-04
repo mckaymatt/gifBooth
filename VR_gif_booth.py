@@ -26,7 +26,7 @@ class CameraCapture():
 
     _img_res_width = 320 
     _img_res_height = 240
-    _screen_text = "Virtualizing!"
+    _screen_text = ""
 
     """
     The images captured by the camera will scale to the resolution provided. 
@@ -39,7 +39,7 @@ class CameraCapture():
 
         self.img_set = None 
         self.start_timer = None
-        self.screen_text1 = self._screen_text
+        self.screen_text1 = ""
         self.output_text = [' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ']
         self.countdown = None
 
@@ -49,8 +49,10 @@ class CameraCapture():
         img.getDrawingLayer().selectFont("andalemono")
         if self.gifSetExistsBool():
             img.getDrawingLayer().circle(center=(self.width-30, self.height-30), radius=20, color=Color.RED, filled=True, alpha=100, antialias=10)          
-        else:
-            img.drawText(text = self.countDown(), x = 20, y = 10, color = Color.GOLD, fontsize = 24)
+        if self.screen_text1 != "":
+            self.countdown_function()
+            if self.screen_text1 != "":
+                img.drawText(text = self.screen_text1, x = 20, y = 10, color = Color.GOLD, fontsize = 24)
         return img
 
     def makeGifSet(self):
@@ -113,12 +115,27 @@ class CameraCapture():
         else:
             return "".join(self.output_text)
 
-    def countDown(self):
+    def countdown_function(self):
+        print 1
+        if isinstance(self.countdown, TimeController):
+            print 2, type(self.countdown.check_timer())
+            if type(self.countdown.check_timer()) in [int, bool]:  
+                print 3 , str(self.countdown.give_value())
+                self.screen_text1 = str(self.countdown.give_value())
 
-        self.countdown = TimeController(1.0, 4)
-        self.screen_text1 = str(md5.new(self.screen_text1).hexdigest())[0:12] 
-        return self.countdown_engage(self.screen_text1)
-        return self.screen_text1
+            elif self.countdown.check_timer() == None :
+                print 4
+                self.countdown , self.screen_text1 = None, ""
+
+                return self.makeGifSet()
+            else:
+                assert 1==2
+        else:
+            print 5
+            self.countdown = TimeController(1, 3)
+            self.screen_text1 = str(repr(self.countdown))
+            return self.countdown_function()
+
 
         # if "<" not in self.screen_text1:
         #     self.screen_text1 = map(lambda x : str(x), self._screen_text)
@@ -139,17 +156,17 @@ class TimeController():
 
 
     def check_timer(self):
-        if self.occurances == 0: 
+        if self.occurances == 0 or self.occurances ==  None: 
             self.occurances = None
             return self.occurances
         elif time.time() - self.start_time >= self.interval:
             self.occurances -= 1
             self.start_time = time.time()
-            return self.occurances + 1
+            return self.occurances
         else:
             return False
 
-    def occ_left(self):
+    def give_value(self): 
         return self.occurances
 
 
@@ -168,7 +185,7 @@ while disp.isNotDone():
     dwn = disp.leftButtonDownPosition()
     # 2 Record Gif
     if dwn != None and cam1.gifSetExistsBool() == False:
-        cam1.countDown()
+        cam1.countdown_function()
         #cam1.makeGifSet() # create file_name, img_set, start_timer  
     # 3 Playback gif
     if cam1.frameTimer():
