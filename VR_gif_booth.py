@@ -7,7 +7,7 @@ import time
 import md5
 import string
 import random
-
+import copy
 from SimpleCV import *
 
 global gif_frames # Frames per .gif file
@@ -19,7 +19,7 @@ if __name__ == '__main__':
         gif_frames = float(sys.argv[1]) 
         gif_frameRate = float(sys.argv[2])
     else:
-        gif_frames = 8.0 
+        gif_frames = 16 
         gif_frameRate = 0.4
 
 class CameraCapture():
@@ -27,35 +27,46 @@ class CameraCapture():
     _img_res_width = 320 
     _img_res_height = 240
     _screen_text = ""
+    _gif_frames = gif_frames 
+    _gif_frameRate = gif_frameRate
 
     """
     The images captured by the camera will scale to the resolution provided. 
     """
 
-    def __init__(self,index,width = _img_res_width , height = _img_res_height):
+    def __init__(self,index,width = _img_res_width , height = _img_res_height, gif_frameRate = gif_frameRate):
         self.width = width
         self.height = height
         self.cam = Camera(index, prop_set={"width":self.width,"height":self.height})
+        self.gif_frameRate = gif_frameRate
 
         self.img_set = None 
         self.start_timer = None
         self.screen_text1 = ""
-        self.output_text = [' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ']
         self.countdown = None
+        self._fr_disp = None # when in use this will contain a tuple that contains and timevalue and function to evaluate whether a preassigned amount of time has passed
+        self.framerate_option_list = [0.1, 0.2, 0.3, 0.4, 0.6, 0.8, 1.0, 1.2, 1.4]
+        self.replay_mode = False
 
     def getNewImage(self):
         img = self.cam.getImage()
 
         img.getDrawingLayer().selectFont("andalemono")
-        if self.gifSetExistsBool():
+        if self._fr_disp != None and self._fr_disp[1](self._fr_disp[0]):
+            img.drawText(text = "gif record time = %s seconds." % (gif_frames*self.gif_frameRate ), x = 8, y = 8, color =Color.IVORY, fontsize = 10)
+
+
+        if self.gifSetExistsBool() and self.replay_mode == False:
             img.getDrawingLayer().circle(center=(self.width-30, self.height-30), radius=20, color=Color.RED, filled=True, alpha=100, antialias=10)          
         if self.screen_text1 != "":
             self.countdown_function()
             if self.screen_text1 != "":
                 img.drawText(text = self.screen_text1, x = 20, y = 10, color = Color.GOLD, fontsize = 24)
         return img
+    def replayToggle(self, a_bool):
+        self.replay_mode = a_bool
 
-    def makeGifSet(self):
+    def makeGifSet(self):   
         self.file_name = uuid.uuid4().hex # make a unique file name
         self.img_set = ImageSet(directory=("output/"+ self.file_name  )) # imageClass.ImageSet()  
         self.start_timer = time.time() #assign a value to start_timer
@@ -63,6 +74,7 @@ class CameraCapture():
     def resetGifSet(self):
         self.start_timer = None # reassign start_timer and img_set 
         self.img_set = None # 
+        self.replay_mode = False
 
     def gifSetExistsBool(self):
         if self.img_set == None:
@@ -73,7 +85,10 @@ class CameraCapture():
     def fillSetThenSave(self, image):
         if self.img_set != None  and len(self.img_set) >= gif_frames:
             self.img_set._write_gif(filename=( "output/"+self.file_name + ".gif"),\
-                duration=(gif_frameRate), dither=2) 
+                duration=(self.gif_frameRate), dither=2) 
+            #copy_img_set = copy(self.img_set)
+            #self.img_set = None
+            #return copy_img_set
             return self.img_set
         if self.img_set != None:
             self.img_set.append(image)
@@ -83,11 +98,22 @@ class CameraCapture():
         if self.start_timer == None:
             return False
         elif self.start_timer != None:
-            if time.time() - self.start_timer >= gif_frameRate:
+            if time.time() - self.start_timer >= self.gif_frameRate:
                 self.start_timer = time.time()
                 return True
             else:
                 return False
+
+    def frameSelector(self):
+
+        self._fr_disp = (time.time() , lambda x : x + 1.2 > time.time() )
+        if self.gif_frameRate > max(self.framerate_option_list) or self.gif_frameRate not in self.framerate_option_list:
+            self.gif_frameRate = self.framerate_option_list[0]
+        else:
+            while self.framerate_option_list[0] != self.gif_frameRate:
+                self.framerate_option_list.append(self.framerate_option_list[0]) ; del self.framerate_option_list[0]
+            self.framerate_option_list.append(self.framerate_option_list[0]) ; del self.framerate_option_list[0]
+            self.gif_frameRate = self.framerate_option_list[0]
 
     def countdown_engage(self, value):
         self.final_text = "VIRTUALIZING"
@@ -116,37 +142,22 @@ class CameraCapture():
             return "".join(self.output_text)
 
     def countdown_function(self):
-        print 1
         if isinstance(self.countdown, TimeController):
-            print 2, type(self.countdown.check_timer())
             if type(self.countdown.check_timer()) in [int, bool]:  
-                print 3 , str(self.countdown.give_value())
                 self.screen_text1 = str(self.countdown.give_value())
 
             elif self.countdown.check_timer() == None :
-                print 4
                 self.countdown , self.screen_text1 = None, ""
-
                 return self.makeGifSet()
             else:
-                assert 1==2
+                raise
         else:
-            print 5
             self.countdown = TimeController(1, 3)
             self.screen_text1 = str(repr(self.countdown))
             return self.countdown_function()
 
-
-        # if "<" not in self.screen_text1:
-        #     self.screen_text1 = map(lambda x : str(x), self._screen_text)
-        #     self.screen_text1.append("<")
-        #     return "".join(self.screen_text1)
-        # elif self.screen_text1[0] == "<":
-        #     self.screen_text1 = self._screen_text
-        #     return self.screen_text1
-        # else:
-        #     self.screen_text1[self.screen_text1.index("<")-1] = "<"
-        #     return "".join(self.screen_text1)  
+    def give_frame_time(self):
+        return self.gif_frameRate  
 
 class TimeController():
     def __init__(self, interval, occurances=1):
@@ -178,10 +189,17 @@ cam1 = CameraCapture(1)
 # by the camera will be scaled to fit the display.
 disp = Display(flags=pg.FULLSCREEN , resolution = (1020 , 765))
 
+
+
 print("\n >>>Press the ESC key to exit!")
 while disp.isNotDone():
     # 1 Get image
     img1 = cam1.getNewImage()
+    mouse2 = disp.rightButtonDownPosition()
+
+    if mouse2 and cam1.gifSetExistsBool() == False:
+        cam1.frameSelector()
+
     dwn = disp.leftButtonDownPosition()
     # 2 Record Gif
     if dwn != None and cam1.gifSetExistsBool() == False:
@@ -191,13 +209,19 @@ while disp.isNotDone():
     if cam1.frameTimer():
         gifSet = cam1.fillSetThenSave(img1)
         if gifSet != None:
-            for j in range(0, 3):
+            cam1.replayToggle(True)
+            if cam1.give_frame_time() > 1:
+                replays = 2
+            else:
+                replays = 3
+            for j in range(0, replays):
                 for i in gifSet:
                     i.save(disp)
-                    time.sleep(gif_frameRate )
+                    time.sleep(cam1.give_frame_time() )
                 else:
-                    time.sleep(gif_frameRate * 3)
+                    time.sleep(cam1.give_frame_time()* 2)
             else:
+                del gifSet
                 print "reset"
                 cam1.resetGifSet()
     # 4 Display
