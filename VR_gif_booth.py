@@ -8,9 +8,6 @@ import string
 import argparse
 from SimpleCV import *
 
-global gif_frames # Frames per animated gif
-global gif_frameSpeed # Frame rate for gif playback and gif record 
-global 
 
 parser = argparse.ArgumentParser()
 parser.add_argument("-frames", "--gif_frames", help="How many frames to record per animated gif.", default=16)
