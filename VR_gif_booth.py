@@ -5,47 +5,65 @@ import time
 import uuid
 import time
 import md5
-import string
-import random
-import copy
+import string 
+import random #delete
+import argparse
 from SimpleCV import *
 
-global gif_frames # Frames per .gif file
-global gif_frameRate # Frame rate for gif playback and gif record 
+global gif_frames # Frames per animated gif
+global gif_frameSpeed # Frame rate for gif playback and gif record 
+global 
+
+parser = argparse.ArgumentParser()
+parser.add_argument("-frames", "--gif_frames", help="How many frames to record per animated gif.", default=16)
+parser.add_argument("-speed" , "--gif_frameSpeed", help="How long between each gif frame in seconds.", default=0.4)
+parser.add_argument("-resolution", "--video_resolution", help="""The video feed is downsampled to this resolution. Gifs are saved at this resolution! Format="[width,height]" """, default=[320,240])
+parser.add_argument("-camera", "--camera_selector", help="This selects which camera to use on setups with more than one camera device. Requires initiger.", default=0)
+parser.add_argument("-display, --display_resolution", help="""The resolution of the display. The video feed will attemp to scale to this resolution. Value can be less than physical display resolution; it's a good idea to match the aspect ratio of the of the video feed. Format="[width,height]" """, default=[1000,750])
+parser.add_argument("-output", "--gif_output_directory", help="Where to save gifs.")
+
+
+args = parser.parse_args()
+if args.gif_frames:
+    gif_frames = args.gif_frames
+if args.gif_frameSpeed:
+    gif_frameSpeed = args.gif_frameSpeed
+if args.video_resolution[0] and args.video_resolution[1]:
+    _img_res_width  = args.video_resolution[0]
+    args.video_resolution[1]
+
+
+
 
 if __name__ == '__main__':
-    if len(sys.argv) == 3:
-        # gif frame number and gif frame rate can be provided as arguments
-        gif_frames = float(sys.argv[1]) 
-        gif_frameRate = float(sys.argv[2])
-    else:
-        gif_frames = 16 
-        gif_frameRate = 0.4
+    print "herrro"
+
+# Init camera 
+cam1 = CameraCapture(index=args.camera_selector, width=args.video_resolution[0], height=args.video_resolution[1], gif_frameSpeed=args.gif_frameSpeed)
+
+# Init display
+# The display resolution should match or fit within your display. The images capture
+# by the camera will be scaled to fit the display.
+disp = Display(flags=pg.FULLSCREEN , resolution = (args.display_resolution[0] , args.display_resolution[1]))
 
 class CameraCapture():
-
-    _img_res_width = 320 
-    _img_res_height = 240
-    _screen_text = ""
-    _gif_frames = gif_frames 
-    _gif_frameRate = gif_frameRate
 
     """
     The images captured by the camera will scale to the resolution provided. 
     """
 
-    def __init__(self,index,width = _img_res_width , height = _img_res_height, gif_frameRate = gif_frameRate):
+    def __init__(self, index, width, height, gif_frameSpeed):
         self.width = width
         self.height = height
         self.cam = Camera(index, prop_set={"width":self.width,"height":self.height})
-        self.gif_frameRate = gif_frameRate
+        self.gif_frameSpeed = gif_frameSpeed
 
         self.img_set = None 
         self.start_timer = None
         self.screen_text1 = ""
         self.countdown = None
         self._fr_disp = None # when in use this will contain a tuple that contains and timevalue and function to evaluate whether a preassigned amount of time has passed
-        self.framerate_option_list = [0.1, 0.2, 0.3, 0.4, 0.6, 0.8, 1.0, 1.2, 1.4]
+        self.framerate_option_list = [0.1, 0.2, 0.3, 0.4, 0.6, 0.8, 1.0]
         self.replay_mode = False
 
     def getNewImage(self):
@@ -53,7 +71,7 @@ class CameraCapture():
 
         img.getDrawingLayer().selectFont("andalemono")
         if self._fr_disp != None and self._fr_disp[1](self._fr_disp[0]):
-            img.drawText(text = "gif record time = %s seconds." % (gif_frames*self.gif_frameRate ), x = 8, y = 8, color =Color.IVORY, fontsize = 10)
+            img.drawText(text = "gif record time = %s seconds." % (gif_frames*self.gif_frameSpeed ), x = 8, y = 8, color =Color.IVORY, fontsize = 10)
 
 
         if self.gifSetExistsBool() and self.replay_mode == False:
@@ -84,8 +102,8 @@ class CameraCapture():
 
     def fillSetThenSave(self, image):
         if self.img_set != None  and len(self.img_set) >= gif_frames:
-            self.img_set._write_gif(filename=( "output/"+self.file_name + ".gif"),\
-                duration=(self.gif_frameRate), dither=2) 
+            self.img_set._write_gif(filename=( "output/"+time.strftime("%Y-%m-%d-%H-%M-%S.gif")),\
+                duration=(self.gif_frameSpeed), dither=2) 
             #copy_img_set = copy(self.img_set)
             #self.img_set = None
             #return copy_img_set
@@ -98,22 +116,21 @@ class CameraCapture():
         if self.start_timer == None:
             return False
         elif self.start_timer != None:
-            if time.time() - self.start_timer >= self.gif_frameRate:
+            if time.time() - self.start_timer >= self.gif_frameSpeed:
                 self.start_timer = time.time()
                 return True
             else:
                 return False
 
     def frameSelector(self):
-
         self._fr_disp = (time.time() , lambda x : x + 1.2 > time.time() )
-        if self.gif_frameRate > max(self.framerate_option_list) or self.gif_frameRate not in self.framerate_option_list:
-            self.gif_frameRate = self.framerate_option_list[0]
+        if self.gif_frameSpeed > max(self.framerate_option_list) or self.gif_frameSpeed not in self.framerate_option_list:
+            self.gif_frameSpeed = self.framerate_option_list[0]
         else:
-            while self.framerate_option_list[0] != self.gif_frameRate:
+            while self.framerate_option_list[0] != self.gif_frameSpeed:
                 self.framerate_option_list.append(self.framerate_option_list[0]) ; del self.framerate_option_list[0]
             self.framerate_option_list.append(self.framerate_option_list[0]) ; del self.framerate_option_list[0]
-            self.gif_frameRate = self.framerate_option_list[0]
+            self.gif_frameSpeed = self.framerate_option_list[0]
 
     def countdown_engage(self, value):
         self.final_text = "VIRTUALIZING"
@@ -157,7 +174,7 @@ class CameraCapture():
             return self.countdown_function()
 
     def give_frame_time(self):
-        return self.gif_frameRate  
+        return self.gif_frameSpeed  
 
 class TimeController():
     def __init__(self, interval, occurances=1):
@@ -181,20 +198,11 @@ class TimeController():
         return self.occurances
 
 
-# Init camera 
-cam1 = CameraCapture(1)
-
-# Init display
-# The display resolution should match or fit within your display. The images capture
-# by the camera will be scaled to fit the display.
-disp = Display(flags=pg.FULLSCREEN , resolution = (1020 , 765))
-
-
 
 print("\n >>>Press the ESC key to exit!")
 while disp.isNotDone():
     # 1 Get image
-    img1 = cam1.getNewImage()
+    img1 = cam1.getNewImage()   
     mouse2 = disp.rightButtonDownPosition()
 
     if mouse2 and cam1.gifSetExistsBool() == False:
@@ -229,17 +237,3 @@ while disp.isNotDone():
 
 print("\n >>>Program Exitted")
 quit()
-
-
-      #fit* - When fit=False write frame will crop and center the image as best it can.
-      #If the image is too big it is cropped and centered. If it is too small
-      #it is centered. If it is too big along one axis that axis is cropped and
-      #the other axis is centered if necessary."""
-
-    # the gifs should be at 320x240 or 640x480
-    # adaptive color palette, a little bit of lossy, and dithering
-    # if you can do these things..
-    # ideally the GIFs would be < 1 MB
-    # about a MB is ok
-    # more than that and people wont be able to load them reliably (like on their phones) and it will slow down / fuck up browsers. i mean a lil over a MB is OK but ideally its really no bigger
-    # shrug maybe 2 MB would be ok, idk
