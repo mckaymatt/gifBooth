@@ -4,9 +4,7 @@ import sys
 import time
 import uuid
 import time
-import md5
 import string 
-import random #delete
 import argparse
 from SimpleCV import *
 
@@ -19,18 +17,12 @@ parser.add_argument("-frames", "--gif_frames", help="How many frames to record p
 parser.add_argument("-speed" , "--gif_frameSpeed", help="How long between each gif frame in seconds.", default=0.4)
 parser.add_argument("-resolution", "--video_resolution", help="""The video feed is downsampled to this resolution. Gifs are saved at this resolution! Format="[width,height]" """, default=[320,240])
 parser.add_argument("-camera", "--camera_selector", help="This selects which camera to use on setups with more than one camera device. Requires initiger.", default=0)
-parser.add_argument("-display, --display_resolution", help="""The resolution of the display. The video feed will attemp to scale to this resolution. Value can be less than physical display resolution; it's a good idea to match the aspect ratio of the of the video feed. Format="[width,height]" """, default=[1000,750])
+parser.add_argument("-display, --display_resolution", help="""The resolution of the display. The video feed will attemp to scale to this resolution. Value can be less than physical display resolution. It's a very good idea to match the aspect ratio of the of the video feed! Format="[width,height]" """, default=[1000,750])
 parser.add_argument("-output", "--gif_output_directory", help="Where to save gifs.")
 
 
 args = parser.parse_args()
-if args.gif_frames:
-    gif_frames = args.gif_frames
-if args.gif_frameSpeed:
-    gif_frameSpeed = args.gif_frameSpeed
-if args.video_resolution[0] and args.video_resolution[1]:
-    _img_res_width  = args.video_resolution[0]
-    args.video_resolution[1]
+
 
 
 
