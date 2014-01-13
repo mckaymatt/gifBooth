@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-
+import os
 import sys
 import time
 import uuid
@@ -8,32 +8,40 @@ import string
 import argparse
 from SimpleCV import *
 
-
-parser = argparse.ArgumentParser()
-parser.add_argument("-frames", "--gif_frames", help="How many frames to record per animated gif.", default=16)
-parser.add_argument("-speed" , "--gif_frameSpeed", help="How long between each gif frame in seconds.", default=0.4)
-parser.add_argument("-resolution", "--video_resolution", help="""The video feed is downsampled to this resolution. Gifs are saved at this resolution! Format="[width,height]" """, default=[320,240])
-parser.add_argument("-camera", "--camera_selector", help="This selects which camera to use on setups with more than one camera device. Requires initiger.", default=0)
-parser.add_argument("-display, --display_resolution", help="""The resolution of the display. The video feed will attemp to scale to this resolution. Value can be less than physical display resolution. It's a very good idea to match the aspect ratio of the of the video feed! Format="[width,height]" """, default=[1000,750])
+parser = argparse.ArgumentParser(description='Make a animated gif photo booth.')
+parser.add_argument("-frames", "--gif_frames", help="How many frames to record per animated gif.",type=float, default=16)
+parser.add_argument("-speed" , "--gif_frameSpeed", help="How long between each gif frame in seconds.",type=float, default=0.4)
+parser.add_argument("-resolution", "--video_resolution", help="""The video feed is downsampled to this resolution. Gifs are saved at this resolution! Format= "width height" w/o quotes""",type=int, nargs='+', default=[320,240])
+parser.add_argument("-camera", "--camera_selector", help="This selects which camera to use on setups with more than one camera device. Requires initeger.", type=int, default=0)
+parser.add_argument("-display", "--display_resolution", help="""The resolution of the display. The video feed will attemp to scale to this resolution. Value can be less than physical display resolution. It's a very good idea to match the aspect ratio of the of the video feed! Format= "width height" w/o quotes """, type=int, nargs='+', default=[1000,750])
 parser.add_argument("-output", "--gif_output_directory", help="Where to save gifs.")
 
 
 args = parser.parse_args()
 
-
-
-
+print args
 
 if __name__ == '__main__':
     print "herrro"
 
-# Init camera 
-cam1 = CameraCapture(index=args.camera_selector, width=args.video_resolution[0], height=args.video_resolution[1], gif_frameSpeed=args.gif_frameSpeed)
+if args.gif_output_directory:
+    if not os.path.isdir(args.gif_output_directory):
+        try:
+            os.mkdir(args.gif_output_directory)
+        except OSError:
+            print "The output directory provided appears to be invalid. Enter a valid path to an existing directory."
+            quit()
 
-# Init display
-# The display resolution should match or fit within your display. The images capture
-# by the camera will be scaled to fit the display.
-disp = Display(flags=pg.FULLSCREEN , resolution = (args.display_resolution[0] , args.display_resolution[1]))
+elif os.path.isdir(os.path.abspath("output")):
+    print "Directory Found"
+
+elif not os.path.isdir(os.path.abspath("output")):
+    args.gif_output_directory = os.path.abspath("output")
+    os.mkdir(args.gif_output_directory)
+    
+else:
+    raise
+
 
 class CameraCapture():
 
@@ -41,11 +49,13 @@ class CameraCapture():
     The images captured by the camera will scale to the resolution provided. 
     """
 
-    def __init__(self, index, width, height, gif_frameSpeed):
+    def __init__(self, index, width, height, gif_frames, gif_frameSpeed, gif_output_directory):
         self.width = width
         self.height = height
         self.cam = Camera(index, prop_set={"width":self.width,"height":self.height})
+        self.gif_frames = gif_frames
         self.gif_frameSpeed = gif_frameSpeed
+        self.gif_output_directory = gif_output_directory
 
         self.img_set = None 
         self.start_timer = None
@@ -57,11 +67,9 @@ class CameraCapture():
 
     def getNewImage(self):
         img = self.cam.getImage()
-
         img.getDrawingLayer().selectFont("andalemono")
         if self._fr_disp != None and self._fr_disp[1](self._fr_disp[0]):
-            img.drawText(text = "gif record time = %s seconds." % (gif_frames*self.gif_frameSpeed ), x = 8, y = 8, color =Color.IVORY, fontsize = 10)
-
+            img.drawText(text = "gif record time = %s seconds." % (self.gif_frames*self.gif_frameSpeed ), x = 8, y = 8, color =Color.IVORY, fontsize = 10)
 
         if self.gifSetExistsBool() and self.replay_mode == False:
             img.getDrawingLayer().circle(center=(self.width-30, self.height-30), radius=20, color=Color.RED, filled=True, alpha=100, antialias=10)          
@@ -74,8 +82,8 @@ class CameraCapture():
         self.replay_mode = a_bool
 
     def makeGifSet(self):   
-        self.file_name = uuid.uuid4().hex # make a unique file name
-        self.img_set = ImageSet(directory=("output/"+ self.file_name  )) # imageClass.ImageSet()  
+        self.img_set = ImageSet(directory=self.gif_output_directory)
+        #(os.join(self.gif_output_directory, uuid.uuid4().hex))) # imageClass.ImageSet()  
         self.start_timer = time.time() #assign a value to start_timer
 
     def resetGifSet(self):
@@ -90,8 +98,8 @@ class CameraCapture():
             return True
 
     def fillSetThenSave(self, image):
-        if self.img_set != None  and len(self.img_set) >= gif_frames:
-            self.img_set._write_gif(filename=( "output/"+time.strftime("%Y-%m-%d-%H-%M-%S.gif")),\
+        if self.img_set != None  and len(self.img_set) >= self.gif_frames:
+            self.img_set._write_gif(filename=(os.path.join(self.gif_output_directory, time.strftime("%Y-%m-%d-%H-%M-%S.gif"))),\
                 duration=(self.gif_frameSpeed), dither=2) 
             #copy_img_set = copy(self.img_set)
             #self.img_set = None
@@ -186,9 +194,17 @@ class TimeController():
     def give_value(self): 
         return self.occurances
 
+# Init camera 
+cam1 = CameraCapture(index=args.camera_selector, width=args.video_resolution[0], height=args.video_resolution[1], gif_frames=args.gif_frames, gif_frameSpeed=args.gif_frameSpeed, gif_output_directory=args.gif_output_directory)
+
+# Init display
+# The display resolution should match or fit within your display. The images capture
+# by the camera will be scaled to fit the display.
+disp = Display(flags=pg.FULLSCREEN , resolution = (args.display_resolution[0] , args.display_resolution[1]))
 
 
 print("\n >>>Press the ESC key to exit!")
+
 while disp.isNotDone():
     # 1 Get image
     img1 = cam1.getNewImage()   
@@ -226,3 +242,6 @@ while disp.isNotDone():
 
 print("\n >>>Program Exitted")
 quit()
+
+
+
