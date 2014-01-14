@@ -132,15 +132,21 @@ class CameraCapture():
         return self.gif_frameSpeed  
 
 class TimeController():
+    """
+    Stopwatch Object
+    
+    Returns integer (remaining occurances) if the timer is active and the predefined interval has ellapsed.
+    Returns False if the timer is acitive but the predefined interval has not ellapsed.
+    Returns None if the timer is no longer active
+    """
     def __init__(self, interval, occurances=1):
         self.start_time = time.time()
-        self.interval = interval
+        self.interval = interval - 0.005 # very scientific fudge factor 
         self.occurances = occurances
 
     def check_timer(self):
-        if self.occurances == 0 or self.occurances ==  None: 
-            self.occurances = None
-            return self.occurances
+        if not self.occurances: 
+            return 
         elif time.time() - self.start_time >= self.interval:
             self.occurances -= 1
             self.start_time = time.time()
