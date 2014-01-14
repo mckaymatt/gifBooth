@@ -9,39 +9,29 @@ import argparse
 from SimpleCV import *
 
 parser = argparse.ArgumentParser(description='Make a animated gif photo booth.')
-parser.add_argument("-frames", "--gif_frames", help="How many frames to record per animated gif.",type=float, default=16)
-parser.add_argument("-speed" , "--gif_frameSpeed", help="How long between each gif frame in seconds.",type=float, default=0.4)
-parser.add_argument("-resolution", "--video_resolution", help="""The video feed is downsampled to this resolution. Gifs are saved at this resolution! Format= "width height" w/o quotes""",type=int, nargs='+', default=[320,240])
-parser.add_argument("-camera", "--camera_selector", help="This selects which camera to use on setups with more than one camera device. Requires initeger.", type=int, default=0)
-parser.add_argument("-display", "--display_resolution", help="""The resolution of the display. The video feed will attemp to scale to this resolution. Value can be less than physical display resolution. It's a very good idea to match the aspect ratio of the of the video feed! Format= "width height" w/o quotes """, type=int, nargs='+', default=[1000,750])
-parser.add_argument("-output", "--gif_output_directory", help="Where to save gifs.")
+parser.add_argument("-frames", "--gif_frames", type=float, default=16, help="How many frames to record per animated gif.")
+parser.add_argument("-speed" , "--gif_frameSpeed", type=float, default=0.4, help="How long between each gif frame in seconds.")
+parser.add_argument("-video", "--resolution_video",type=int, nargs='+', default=[320,240], help="""The video feed is downsampled to this resolution. Gifs are saved at this resolution! Format= "width height" w/o quotes""")
+parser.add_argument("-camera", "--camera_selector", type=int, default=0, help="This selects which camera to use on setups with more than one camera device. Requires initeger.")
+parser.add_argument("-display", "--display_size", type=int, nargs='+', default=[1000,750], help="""The resolution of the display. The video feed will attemp to scale to this resolution. Value can be less than physical display resolution. It's a very good idea to match the aspect ratio of the of the video feed! Format= "width height" w/o quotes """)
+parser.add_argument("-output", "--gif_output_directory", default=os.path.abspath("output"), help="Where to save gifs.")
 
 
 args = parser.parse_args()
 
 print args
 
+
 if __name__ == '__main__':
     print "herrro"
 
-if args.gif_output_directory:
-    if not os.path.isdir(args.gif_output_directory):
-        try:
-            os.mkdir(args.gif_output_directory)
-        except OSError:
-            print "The output directory provided appears to be invalid. Enter a valid path to an existing directory."
-            quit()
-
-elif os.path.isdir(os.path.abspath("output")):
-    print "Directory Found"
-
-elif not os.path.isdir(os.path.abspath("output")):
-    args.gif_output_directory = os.path.abspath("output")
-    os.mkdir(args.gif_output_directory)
-    
-else:
-    raise
-
+if args.gif_output_directory != os.path.abspath("output") or not os.path.isdir(args.gif_output_directory):
+    try:
+        os.mkdir(args.gif_output_directory)
+    except OSError:
+        print "The output directory provided appears to be invalid. Enter a valid path to an existing directory."
+        quit()
+assert os.path.isdir(args.gif_output_directory)
 
 class CameraCapture():
 
@@ -71,18 +61,17 @@ class CameraCapture():
         if self._fr_disp != None and self._fr_disp[1](self._fr_disp[0]):
             img.drawText(text = "gif record time = %s seconds." % (self.gif_frames*self.gif_frameSpeed ), x = 8, y = 8, color =Color.IVORY, fontsize = 10)
 
-        if self.gifSetExistsBool() and self.replay_mode == False:
+        if self.gifSetExistsBool():
             img.getDrawingLayer().circle(center=(self.width-30, self.height-30), radius=20, color=Color.RED, filled=True, alpha=100, antialias=10)          
         if self.screen_text1 != "":
-            self.countdown_function()
+            self.countdown_initiate()
             if self.screen_text1 != "":
                 img.drawText(text = self.screen_text1, x = 20, y = 10, color = Color.GOLD, fontsize = 24)
         return img
-    def replayToggle(self, a_bool):
-        self.replay_mode = a_bool
 
     def makeGifSet(self):   
-        self.img_set = ImageSet(directory=self.gif_output_directory)
+        self.filename = os.path.join(self.gif_output_directory, time.strftime("%Y-%m-%d-%H-%M-%S.gif"))
+        self.img_set = ImageSet(directory=self.filename)
         #(os.join(self.gif_output_directory, uuid.uuid4().hex))) # imageClass.ImageSet()  
         self.start_timer = time.time() #assign a value to start_timer
 
@@ -92,20 +81,16 @@ class CameraCapture():
         self.replay_mode = False
 
     def gifSetExistsBool(self):
-        if self.img_set == None:
-            return False
-        else:
+        if self.img_set != None:
             return True
 
     def fillSetThenSave(self, image):
+
         if self.img_set != None  and len(self.img_set) >= self.gif_frames:
-            self.img_set._write_gif(filename=(os.path.join(self.gif_output_directory, time.strftime("%Y-%m-%d-%H-%M-%S.gif"))),\
-                duration=(self.gif_frameSpeed), dither=2) 
-            #copy_img_set = copy(self.img_set)
-            #self.img_set = None
-            #return copy_img_set
+            self.img_set._write_gif(filename=(self.filename), duration=(self.gif_frameSpeed), dither=2) 
             return self.img_set
         if self.img_set != None:
+            image.clearLayers()
             self.img_set.append(image)
             return None
 
@@ -129,33 +114,7 @@ class CameraCapture():
             self.framerate_option_list.append(self.framerate_option_list[0]) ; del self.framerate_option_list[0]
             self.gif_frameSpeed = self.framerate_option_list[0]
 
-    def countdown_engage(self, value):
-        self.final_text = "VIRTUALIZING"
-        value = map(lambda x : str(x), value)
-        for i in enumerate(self.final_text):
-            stored_char = value[i[0]]
-            random_char = random.choice(string.ascii_uppercase)
-            if self.output_text[i[0]] == self.final_text[i[0]]:
-                continue
-            if self.final_text[i[0]] == random_char:
-                self.output_text[i[0]] = random_char
-
-            #if self.final_text[i[0]] == random_char:
-                #self.output_text[i[0]] = random_char
-            #if value[i[0]] in string.ascii_letters:
-
-            #if value[i[0]] == i[1]:
-            #    self.output_text[i[0]] = i[1] 
-            else:
-                self.output_text[i[0]] = value[i[0]]
-        if "".join(self.output_text) == self.final_text:
-            self.output_text = [' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ']
-            #self.makeGifSet()
-            return self.final_text
-        else:
-            return "".join(self.output_text)
-
-    def countdown_function(self):
+    def countdown_initiate(self):
         if isinstance(self.countdown, TimeController):
             if type(self.countdown.check_timer()) in [int, bool]:  
                 self.screen_text1 = str(self.countdown.give_value())
@@ -163,12 +122,11 @@ class CameraCapture():
             elif self.countdown.check_timer() == None :
                 self.countdown , self.screen_text1 = None, ""
                 return self.makeGifSet()
-            else:
-                raise
+
         else:
             self.countdown = TimeController(1, 3)
             self.screen_text1 = str(repr(self.countdown))
-            return self.countdown_function()
+            return self.countdown_initiate()
 
     def give_frame_time(self):
         return self.gif_frameSpeed  
@@ -178,7 +136,6 @@ class TimeController():
         self.start_time = time.time()
         self.interval = interval
         self.occurances = occurances
-
 
     def check_timer(self):
         if self.occurances == 0 or self.occurances ==  None: 
@@ -195,50 +152,60 @@ class TimeController():
         return self.occurances
 
 # Init camera 
-cam1 = CameraCapture(index=args.camera_selector, width=args.video_resolution[0], height=args.video_resolution[1], gif_frames=args.gif_frames, gif_frameSpeed=args.gif_frameSpeed, gif_output_directory=args.gif_output_directory)
+cam1 = CameraCapture(index=args.camera_selector, 
+    width=args.resolution_video[0], 
+    height=args.resolution_video[1], 
+    gif_frames=args.gif_frames, 
+    gif_frameSpeed=args.gif_frameSpeed, 
+    gif_output_directory=args.gif_output_directory)
 
 # Init display
 # The display resolution should match or fit within your display. The images capture
 # by the camera will be scaled to fit the display.
-disp = Display(flags=pg.FULLSCREEN , resolution = (args.display_resolution[0] , args.display_resolution[1]))
+disp = Display(flags=pg.FULLSCREEN , 
+    resolution = (args.display_size[0] , args.display_size[1]))
 
 
 print("\n >>>Press the ESC key to exit!")
 
 while disp.isNotDone():
-    # 1 Get image
-    img1 = cam1.getNewImage()   
-    mouse2 = disp.rightButtonDownPosition()
 
-    if mouse2 and cam1.gifSetExistsBool() == False:
+    # 1 Get image from camera
+    img1 = cam1.getNewImage()   
+
+    # 2 User interface - Select gif frame speed
+    mouse2 = disp.rightButtonDownPosition()
+    if mouse2 and not cam1.gifSetExistsBool() :
         cam1.frameSelector()
 
+    # 3 User interface - Begin reecording gif
     dwn = disp.leftButtonDownPosition()
-    # 2 Record Gif
-    if dwn != None and cam1.gifSetExistsBool() == False:
-        cam1.countdown_function()
-        #cam1.makeGifSet() # create file_name, img_set, start_timer  
-    # 3 Playback gif
+    if  dwn and not cam1.gifSetExistsBool():
+        cam1.countdown_initiate()
+ 
+    # 4 Send image to display
+    img1.save(disp)  
+
+    # 5 Load gif image into gif set. When set is full, save gif file, then return image set. 
     if cam1.frameTimer():
         gifSet = cam1.fillSetThenSave(img1)
-        if gifSet != None:
-            cam1.replayToggle(True)
-            if cam1.give_frame_time() > 1:
-                replays = 2
+
+    # 6 When an image set is present, sent it to display.
+    if gifSet != None:  
+        if cam1.give_frame_time() > 0.7:
+            replays = 2
+        else:
+            replays = 3
+        for j in range(0, replays):
+            for i in gifSet:
+                i.save(disp)
+                time.sleep(cam1.give_frame_time() )
             else:
-                replays = 3
-            for j in range(0, replays):
-                for i in gifSet:
-                    i.save(disp)
-                    time.sleep(cam1.give_frame_time() )
-                else:
-                    time.sleep(cam1.give_frame_time()* 2)
-            else:
-                del gifSet
-                print "reset"
-                cam1.resetGifSet()
-    # 4 Display
-    img1.save(disp)
+                time.sleep(cam1.give_frame_time()* 2)
+        else:
+            gifSet = None
+            cam1.resetGifSet()
+
 
 print("\n >>>Program Exitted")
 quit()
