@@ -4,7 +4,7 @@ Set up an animated gif photo booth at your next party.
 
 What Is This?
 ~~~~~
-gifBooth uses a computer vision library to record, save and playback, animated gifs. 
+gifBooth uses a computer vision library to record, save, and playback animated gifs. 
 The gifs produced by gifBooth can easily be uploaded to the internet.
 
 Hardware Requirements
