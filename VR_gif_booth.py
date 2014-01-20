@@ -10,31 +10,6 @@ import types
 from SimpleCV import *
 
 
-parser = argparse.ArgumentParser(description='Make a animated gif photo booth.')
-parser.add_argument("-frames", "--gif_frames", type=float, default=16, help="How many frames to record per animated gif.")
-parser.add_argument("-speed" , "--gif_frameSpeed", type=float, default=0.4, help="How long between each gif frame in seconds.")
-parser.add_argument("-video", "--resolution_video",type=int, nargs='+', default=[320,240], help="""The video feed is downsampled to this resolution. Gifs are saved at this resolution! Format= "width height" w/o quotes""")
-parser.add_argument("-camera", "--camera_selector", type=int, default=0, help="This selects which camera to use on setups with more than one camera device. Requires initeger.")
-parser.add_argument("-display", "--display_size", type=int, nargs='+', default=[1000,750], help="""The resolution of the display. The video feed will attemp to scale to this resolution. Value can be less than physical display resolution. It's a very good idea to match the aspect ratio of the of the video feed! Format= "width height" w/o quotes """)
-parser.add_argument("-output", "--gif_output_directory", default=os.path.abspath("output"), help="Where to save gifs.")
-
-
-args = parser.parse_args()
-
-print args
-
-
-if __name__ == '__main__':
-    print "herrro"
-
-if args.gif_output_directory != os.path.abspath("output") or not os.path.isdir(args.gif_output_directory):
-    try:
-        os.mkdir(args.gif_output_directory)
-    except OSError:
-        print "The output directory provided appears to be invalid. Enter a valid path to an existing directory."
-        quit()
-assert os.path.isdir(args.gif_output_directory)
-
 class CameraCapture():
 
     """
@@ -48,47 +23,59 @@ class CameraCapture():
         self.gif_frames = gif_frames
         self.gif_frameSpeed = gif_frameSpeed
         self.gif_output_directory = gif_output_directory
+        self.framerate_option_list = [0.1, 0.2, 0.3, 0.4, 0.6, 0.8, 1.0]
 
         self.img_set = None 
         self.start_timer = None
         self.screen_text1 = ""
         self.countdown = None
-        self._fr_disp = None # when in use this will contain a tuple that contains and timevalue and function to evaluate whether a preassigned amount of time has passed
-        self.framerate_option_list = [0.1, 0.2, 0.3, 0.4, 0.6, 0.8, 1.0]
+        self._fr_disp = None 
 
     def getNewImage(self):
+        """
+        Gets an image from the camera and then applies drawing layers
+        """
         img = self.cam.getImage()
         img.getDrawingLayer().selectFont("andalemono")
-        if self._fr_disp != None and self._fr_disp[1](self._fr_disp[0]):
+
+        if self._fr_disp != None and self._fr_disp[1](self._fr_disp[0]): # Displays frameSelector changes 
             img.drawText(text = "gif record time = %s seconds." % (self.gif_frames*self.gif_frameSpeed ), x = 8, y = 8, color =Color.IVORY, fontsize = 10)
 
-        if self.gifSetExistsBool():
-            img.getDrawingLayer().circle(center=(self.width-30, self.height-30), radius=20, color=Color.RED, filled=True, alpha=100, antialias=50)          
-        if self.screen_text1 != "":
+        if self.gifSetExistsBool(): # Displays "Now Recording" indicator
+            img.getDrawingLayer().circle(center=(self.width-30, self.height-30), radius=20, color=Color.RED, filled=True, alpha=100, antialias=50)  
+
+        if self.screen_text1 != "": # Displays countdown
             self.countdown_initiate()
             if self.screen_text1 != "":
                 img.drawText(text = self.screen_text1, x = 20, y = 10, color = Color.GOLD, fontsize = 24)
+
         return img
 
     def makeGifSet(self):   
+        """
+        creats a file name, image set, and starts a stopwatch obj
+        """
         self.filename = os.path.join(self.gif_output_directory, time.strftime("%Y-%m-%d-%H-%M-%S.gif"))
         self.img_set = ImageSet(directory=self.filename)
-        self.start_timer = TimeController(self.gif_frameSpeed, self.gif_frames+1)
+        self.start_timer = TimeController(self.gif_frameSpeed, self.gif_frames+1) 
 
     def resetGifSet(self):
+        """
+        reassigns objects back to none which are 
+        """
         self.start_timer = None # reassign start_timer and img_set 
-        self.img_set = None # 
+        self.img_set = None 
 
     def gifSetExistsBool(self):
-        if self.img_set != None:
+        if self.img_set != None: 
             return True
 
     def fillSetThenSave(self, image):
         if self.img_set != None  and len(self.img_set) >= self.gif_frames:
             self.img_set._write_gif(filename=(self.filename), duration=(self.gif_frameSpeed), dither=2) 
             return self.img_set
+
         if self.img_set != None:
-            print len(self.img_set)
             image.clearLayers()
             self.img_set.append(image)
             return None
@@ -103,27 +90,35 @@ class CameraCapture():
 
 
     def frameSelector(self):
-        self._fr_disp = (time.time() , lambda x : x + 1.2 > time.time() )
-        if self.gif_frameSpeed > max(self.framerate_option_list) or self.gif_frameSpeed not in self.framerate_option_list:
+        """
+        Method for changing the gif frame rate. This allows users to control how long a gif records.
+        Allows for continuity between a custom framespeed that was provided as an argument and is outside the range of framerate_option_list, and predefined framerate_option_list. 
+        """ 
+        self._fr_disp = (time.time() , lambda x : x + 1.2 > time.time()) # list containing value and function equivilant to [time at creation , lambda function that returns true if 1.2 seconds have passed since object creation]. Used to control how long the new framepeed should be displayed to users. 
+        if self.gif_frameSpeed not in self.framerate_option_list: #   
             self.gif_frameSpeed = self.framerate_option_list[0]
         else:
-            while self.framerate_option_list[0] != self.gif_frameSpeed:
-                self.framerate_option_list.append(self.framerate_option_list[0]) ; del self.framerate_option_list[0]
-            self.framerate_option_list.append(self.framerate_option_list[0]) ; del self.framerate_option_list[0]
-            self.gif_frameSpeed = self.framerate_option_list[0]
+            while self.framerate_option_list[0] != self.gif_frameSpeed: 
+                self.framerate_option_list.append(self.framerate_option_list.pop(0)) # cycle framerate list until the current item is found
+            self.framerate_option_list.append(self.framerate_option_list.pop(0)) # advance the list once
+            self.gif_frameSpeed = self.framerate_option_list[0] # reassign gif framespeed
 
-    def countdown_initiate(self):
+    def countdown_initiate(self): 
+        """
+        Controls a timed countdown that is sent to the display. 
+        Initiate gif creation upon compleation. 
+        """
+
         if isinstance(self.countdown, TimeController):
             if type(self.countdown.check_timer()) in [int, bool]:  
                 self.screen_text1 = str(self.countdown.give_value())
 
-            elif self.countdown.check_timer() == None :
+            elif self.countdown.check_timer() in [None, 0] :
                 self.countdown , self.screen_text1 = None, ""
                 return self.makeGifSet()
 
         else:
             self.countdown = TimeController(1, 3)
-            self.screen_text1 = str(repr(self.countdown))
             return self.countdown_initiate()
 
     def give_frameSpeed(self):
@@ -156,27 +151,30 @@ class TimeController():
     def give_value(self): 
         return self.occurances
 
-class TimeBasedFunctionControl(TimeController):
-    def __init__(self, interval, occurances, return_func):
-        TimeController.__init__(self, interval, occurances)
-        self.return_func = return_func
-        assert type(self.return_func) == types.MethodType
+# Create argument parser
+parser = argparse.ArgumentParser(description='Make a animated gif photo booth.')
+parser.add_argument("-frames", "--gif_frames", type=float, default=16, help="How many frames to record per animated gif.")
+parser.add_argument("-frameSpeed" , "--gif_frameSpeed", type=float, default=0.4, help="How long between each gif frame in seconds.")
+parser.add_argument("-video", "--resolution_video",type=int, nargs='+', default=[320,240], help="""The video feed is downsampled to this resolution. Gifs are saved at this resolution! Format= "width height" w/o quotes""")
+parser.add_argument("-camera", "--select_camera", type=int, default=0, help="This selects which camera to use on setups with more than one camera device. Requires initeger.")
+parser.add_argument("-display", "--resolution_display", type=int, nargs='+', default=[1000,750], help="""The resolution of the display. The video feed will attemp to scale to this resolution. Value can be less than physical display resolution. It's a very good idea to match the aspect ratio of the of the video feed! Format= "width height" w/o quotes """)
+parser.add_argument("-directory", "--gif_output_directory", default=os.path.abspath("output"), help="Where to save gifs. Default is a directory called output in the current working directory")
 
-    def false_return_func(self, x=None):
-        return False
 
-    def check_timer(self):
-        if self.occurances != None and time.time() - self.start_time >= self.interval : 
-            self.occurances -= 1
-            self.start_time = time.time()
-            return self.return_func
-        else:
-            return self.false_return_func
+args = parser.parse_args()
+print args
+
+if args.gif_output_directory != os.path.abspath("output") or not os.path.isdir(args.gif_output_directory):
+    try:
+        os.mkdir(args.gif_output_directory)
+    except OSError:
+        print "The output directory provided appears to be invalid. Enter a valid path to an existing directory."
+        quit()
 
 
 
 # Init camera 
-cam1 = CameraCapture(index=args.camera_selector, 
+cam1 = CameraCapture(index=args.select_camera, 
     width=args.resolution_video[0], 
     height=args.resolution_video[1], 
     gif_frames=args.gif_frames, 
@@ -187,22 +185,35 @@ cam1 = CameraCapture(index=args.camera_selector,
 # The display resolution should match or fit within your display. The images capture
 # by the camera will be scaled to fit the display.
 disp = Display(flags=pg.FULLSCREEN , 
-    resolution = (args.display_size[0] , args.display_size[1]))
+    resolution = (args.resolution_display[0] , args.resolution_display[1]))
 
 
 print("\n >>>Press the ESC key to exit!")
+countFR = [float(time.time()) , lambda x : (x + 1.0) < time.time(), 0]
+count = 0
+count_of_counts = 0
+overall_count = float(time.time())
+while disp.isNotDone(): 
+    count += 1
+     
 
-while disp.isNotDone():
+
+    if countFR[1](countFR[0]) == True:
+        print count - countFR[2] 
+        countFR[0] = float(time.time())
+        countFR[2] = count
+        count_of_counts += 1
+         
 
     # 1 Get image from camera
     img1 = cam1.getNewImage()   
 
-    # 2 User interface - Select gif frame speed
+    # 2 User interface - Select gif frame speed with left mouse
     mouse2 = disp.rightButtonDownPosition()
     if mouse2 and not cam1.gifSetExistsBool() :
         cam1.frameSelector()
 
-    # 3 User interface - Begin reecording gif
+    # 3 User interface - Record gif after displaying a countdown with right mouse
     dwn = disp.leftButtonDownPosition()
     if  dwn and not cam1.gifSetExistsBool():
         cam1.countdown_initiate()
@@ -210,31 +221,31 @@ while disp.isNotDone():
     # 4 Send image to display
     img1.save(disp)  
 
-    # 5 Load gif image into gif set. When set is full, save gif file, then return image set. 
+    # 5 Load gif images into gif set. When set is full, save gif file, then return image set. 
     gifSet = None
-
     if cam1.frameTimer() == True:
         gifSet = cam1.fillSetThenSave(img1)
-        print gifSet
 
-    # 6 When an image set is present, sent it to display.
+    # 6 When an image set is present, replay it to the display.
     if gifSet != None:  
-        if cam1.give_frameSpeed() > 0.7:
-            replays = 2
+        if cam1.give_frameSpeed() > 0.7: # Only replay a gif twice if it is longer.
+            replays = 2 
         else:
             replays = 3
-        for j in range(0, replays):
+        for j in range(0, replays): 
             for i in gifSet:
                 i.save(disp)
-                time.sleep(cam1.give_frameSpeed() )
+                time.sleep(cam1.give_frameSpeed())
             else:
-                time.sleep(cam1.give_frameSpeed()* 2)
+                time.sleep(cam1.give_frameSpeed() * 2) # pause between replays
         else:
             gifSet = None
-            cam1.resetGifSet()
+            cam1.resetGifSet() 
 
 
 print("\n >>>Program Exitted")
+print count_of_counts
+print time.time() - overall_count
 quit()
 
 
