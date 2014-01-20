@@ -6,7 +6,9 @@ import uuid
 import time
 import string 
 import argparse
+import types
 from SimpleCV import *
+
 
 parser = argparse.ArgumentParser(description='Make a animated gif photo booth.')
 parser.add_argument("-frames", "--gif_frames", type=float, default=16, help="How many frames to record per animated gif.")
@@ -53,7 +55,6 @@ class CameraCapture():
         self.countdown = None
         self._fr_disp = None # when in use this will contain a tuple that contains and timevalue and function to evaluate whether a preassigned amount of time has passed
         self.framerate_option_list = [0.1, 0.2, 0.3, 0.4, 0.6, 0.8, 1.0]
-        self.replay_mode = False
 
     def getNewImage(self):
         img = self.cam.getImage()
@@ -62,7 +63,7 @@ class CameraCapture():
             img.drawText(text = "gif record time = %s seconds." % (self.gif_frames*self.gif_frameSpeed ), x = 8, y = 8, color =Color.IVORY, fontsize = 10)
 
         if self.gifSetExistsBool():
-            img.getDrawingLayer().circle(center=(self.width-30, self.height-30), radius=20, color=Color.RED, filled=True, alpha=100, antialias=10)          
+            img.getDrawingLayer().circle(center=(self.width-30, self.height-30), radius=20, color=Color.RED, filled=True, alpha=100, antialias=50)          
         if self.screen_text1 != "":
             self.countdown_initiate()
             if self.screen_text1 != "":
@@ -72,37 +73,34 @@ class CameraCapture():
     def makeGifSet(self):   
         self.filename = os.path.join(self.gif_output_directory, time.strftime("%Y-%m-%d-%H-%M-%S.gif"))
         self.img_set = ImageSet(directory=self.filename)
-        #(os.join(self.gif_output_directory, uuid.uuid4().hex))) # imageClass.ImageSet()  
-        self.start_timer = time.time() #assign a value to start_timer
+        self.start_timer = TimeController(self.gif_frameSpeed, self.gif_frames+1)
 
     def resetGifSet(self):
         self.start_timer = None # reassign start_timer and img_set 
         self.img_set = None # 
-        self.replay_mode = False
 
     def gifSetExistsBool(self):
         if self.img_set != None:
             return True
 
     def fillSetThenSave(self, image):
-
         if self.img_set != None  and len(self.img_set) >= self.gif_frames:
             self.img_set._write_gif(filename=(self.filename), duration=(self.gif_frameSpeed), dither=2) 
             return self.img_set
         if self.img_set != None:
+            print len(self.img_set)
             image.clearLayers()
             self.img_set.append(image)
             return None
 
     def frameTimer(self):
         if self.start_timer == None:
-            return False
-        elif self.start_timer != None:
-            if time.time() - self.start_timer >= self.gif_frameSpeed:
-                self.start_timer = time.time()
-                return True
-            else:
-                return False
+            return None
+        elif type(self.start_timer.check_timer()) == int:
+            return True
+        else:
+            False
+
 
     def frameSelector(self):
         self._fr_disp = (time.time() , lambda x : x + 1.2 > time.time() )
@@ -128,13 +126,14 @@ class CameraCapture():
             self.screen_text1 = str(repr(self.countdown))
             return self.countdown_initiate()
 
-    def give_frame_time(self):
+    def give_frameSpeed(self):
         return self.gif_frameSpeed  
 
 class TimeController():
     """
-    Stopwatch Object
+    Create a stopwatch object
     
+    check_timer behavior:
     Returns integer (remaining occurances) if the timer is active and the predefined interval has ellapsed.
     Returns False if the timer is acitive but the predefined interval has not ellapsed.
     Returns None if the timer is no longer active
@@ -150,12 +149,31 @@ class TimeController():
         elif time.time() - self.start_time >= self.interval:
             self.occurances -= 1
             self.start_time = time.time()
-            return self.occurances
+            return int(self.occurances)
         else:
             return False
 
     def give_value(self): 
         return self.occurances
+
+class TimeBasedFunctionControl(TimeController):
+    def __init__(self, interval, occurances, return_func):
+        TimeController.__init__(self, interval, occurances)
+        self.return_func = return_func
+        assert type(self.return_func) == types.MethodType
+
+    def false_return_func(self, x=None):
+        return False
+
+    def check_timer(self):
+        if self.occurances != None and time.time() - self.start_time >= self.interval : 
+            self.occurances -= 1
+            self.start_time = time.time()
+            return self.return_func
+        else:
+            return self.false_return_func
+
+
 
 # Init camera 
 cam1 = CameraCapture(index=args.camera_selector, 
@@ -193,21 +211,24 @@ while disp.isNotDone():
     img1.save(disp)  
 
     # 5 Load gif image into gif set. When set is full, save gif file, then return image set. 
-    if cam1.frameTimer():
+    gifSet = None
+
+    if cam1.frameTimer() == True:
         gifSet = cam1.fillSetThenSave(img1)
+        print gifSet
 
     # 6 When an image set is present, sent it to display.
     if gifSet != None:  
-        if cam1.give_frame_time() > 0.7:
+        if cam1.give_frameSpeed() > 0.7:
             replays = 2
         else:
             replays = 3
         for j in range(0, replays):
             for i in gifSet:
                 i.save(disp)
-                time.sleep(cam1.give_frame_time() )
+                time.sleep(cam1.give_frameSpeed() )
             else:
-                time.sleep(cam1.give_frame_time()* 2)
+                time.sleep(cam1.give_frameSpeed()* 2)
         else:
             gifSet = None
             cam1.resetGifSet()
